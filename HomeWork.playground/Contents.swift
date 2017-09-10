@@ -29,6 +29,7 @@ class Unit {
     var armor: Int
     var agility: Int
     var nick: String
+    let armorSave = 47 / 100
     
     init(damage: Int, armor: Int, agility: Int, nick: String) {
         self.damage = damage
@@ -38,7 +39,7 @@ class Unit {
     }
     
     func attack(to enemy: Unit) {
-        enemy.health -= self.damage + ((armor * 47) / 100)
+        enemy.health -= self.damage + (enemy.armor * armorSave)
     }
     
 }
@@ -46,6 +47,7 @@ class Unit {
 class Wizard: Unit {
     
     var fireDamage: Int
+    let fireSave = 28 / 100
     
     init(damage: Int, armor: Int, agility: Int, nick: String, fireDamage: Int) {
         self.fireDamage = fireDamage
@@ -54,7 +56,7 @@ class Wizard: Unit {
     
     override func attack(to enemy: Unit) {
         super.attack(to: enemy)
-        enemy.health -= fireDamage + ((armor * 28) / 100)
+        enemy.health -= fireDamage + (enemy.armor * fireSave)
     }
 
 }
@@ -63,9 +65,10 @@ class Knight: Unit {
     
     var shieldArmor: Int
     var healthValue = 0
+    let shieldSave = 71 / 100
     override var health: Int {
         set {
-            healthValue = newValue + ((shieldArmor * 71) / 100)
+            healthValue = newValue + (shieldArmor * shieldSave)
         }
         get {
             return healthValue
@@ -83,6 +86,7 @@ class Knight: Unit {
 class Assassin: Unit {
     
     var cloakAgility: Int
+    let cloakDamage = 43 / 100
     
     init(damage: Int, armor: Int, agility: Int, nick: String, cloakAgility: Int) {
         self.cloakAgility = cloakAgility
@@ -91,7 +95,7 @@ class Assassin: Unit {
     
     override func attack(to enemy: Unit) {
         super.attack(to: enemy)
-        enemy.health -= ((cloakAgility * 43) / 100)
+        enemy.health -= (cloakAgility * cloakDamage)
     }
     
 }
@@ -143,12 +147,14 @@ class Battlefield {
                     print("\(players.last!.nick) attack \(players.first!.nick)")
                 }
                 
-                players.last!.attack(to: players.first!)
-                if players.first!.health < 0 {
-                    if logger {print("\(players.first!.nick) has fallen")}
-                    players.remove(at: 0)
+                if let lastPlayer = players.last, let firstPlayer = players.first {
+                    lastPlayer.attack(to: firstPlayer)
+                    if firstPlayer.health < 0 {
+                        if logger {print("\(firstPlayer.nick) has fallen")}
+                        players.remove(at: 0)
+                    }
+                    currentPosition = 0
                 }
-                currentPosition = 0
             }
         }
         if logger {print("logger end!")}
@@ -171,6 +177,7 @@ class Game: BattleListener {
     var units = [Unit]()
     var victoriesTable = [String : Int]()
     var lossTable = [String : Int]()
+    let stopFor = 2
     
     func join(as unit: Unit) {
         units.append(unit)
@@ -180,8 +187,8 @@ class Game: BattleListener {
         let index = units.index { (unitInArray) -> Bool in
             unit === unitInArray
         }
-        if index != nil {
-            units.remove(at: index!)
+        if let currentIndex = index {
+            units.remove(at: currentIndex)
         } else {
             print("Unit not found :(")
         }
@@ -193,19 +200,17 @@ class Game: BattleListener {
     }
     
     func battleEnd(winner: String) {
-        for unit in units {
-            unit.health = 100
-        }
+        units.forEach { $0.health = 100 }
         
         victoriesTable[winner] = 1 + ((victoriesTable[winner] != nil) ? victoriesTable[winner]! : 0)
         let losers = units.filter { $0.nick != winner }
         for loser in losers {
             lossTable[loser.nick] = 1 + ((lossTable[loser.nick] != nil) ? lossTable[loser.nick]! : 0)
         }
+        
         print("Players played: ")
-        for unit in units {
-            print(unit.nick)
-        }
+        units.forEach { print($0.nick) }
+        
         print("Winner: \(winner)")
         print("----------------------------------------")
         print("TOP 3 Players (Nick, Victories, Losses):")
@@ -218,7 +223,7 @@ class Game: BattleListener {
             print("\(nick) \(victories) \(losses)")
             
             
-            if (i == 2) {
+            if (i == stopFor) {
                 break
             }
         }
@@ -227,7 +232,7 @@ class Game: BattleListener {
 }
 
 //methods for testing
-func generatePlayer(with nick: String) -> Unit? {
+func generatePlayer(with nick: String) -> Unit {
     let typeNumber = arc4random_uniform(2)
     let damage = Int(arc4random_uniform(99) + 1)
     let armor = Int(arc4random_uniform(99) + 1)
@@ -238,12 +243,9 @@ func generatePlayer(with nick: String) -> Unit? {
         return Wizard(damage: damage, armor: armor, agility: agility, nick: nick, fireDamage: skill)
     case 1:
         return Knight(damage: damage, armor: armor, agility: agility, nick: nick, shieldArmor: skill)
-    case 2:
-        return Assassin(damage: damage, armor: armor, agility: agility, nick: nick, cloakAgility: skill)
     default:
-        break
+        return Assassin(damage: damage, armor: armor, agility: agility, nick: nick, cloakAgility: skill)
     }
-    return nil
 }
 
 func updatePlayer(_ unit: Unit) {
@@ -271,12 +273,12 @@ func updatePlayer(_ unit: Unit) {
 
 //Test methods
 let game = Game.initGame
-game.join(as: generatePlayer(with: "Player1")!)
-game.join(as: generatePlayer(with: "Player2")!)
-game.join(as: generatePlayer(with: "Player3")!)
-game.join(as: generatePlayer(with: "Player4")!)
-game.join(as: generatePlayer(with: "Player5")!)
-game.join(as: generatePlayer(with: "Player6")!)
+game.join(as: generatePlayer(with: "Player1"))
+game.join(as: generatePlayer(with: "Player2"))
+game.join(as: generatePlayer(with: "Player3"))
+game.join(as: generatePlayer(with: "Player4"))
+game.join(as: generatePlayer(with: "Player5"))
+game.join(as: generatePlayer(with: "Player6"))
 
 game.startGame()
 for i in 0 ..< 9 {
